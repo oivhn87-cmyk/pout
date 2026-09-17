@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHK 番組作成・動画アップロード付き番組表シミュレーター</title>
+    <style>
+        :root {
+            --nhk-red: #cc0000;
+            --nhk-dark: #333333;
+            --bg-color: #f4f4f4;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--nhk-dark);
+        }
+
+        header {
+            background-color: var(--nhk-dark);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 span {
+            background-color: var(--nhk-red);
+            padding: 3px 8px;
+            font-size: 0.9rem;
+            border-radius: 3px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            border-left: 4px solid var(--nhk-red);
+            padding-left: 10px;
+            margin-top: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* ファイルアップロード用デザイン調整 */
+        input[type="file"] {
+            font-size: 0.8rem;
+            padding: 6px;
+            background: #fafafa;
+        }
+
+        button.btn-primary {
+            background-color: var(--nhk-red);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        button.btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        /* 番組表スタイル */
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .channel-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            padding: 6px 15px;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .tab-btn.active {
+            background: var(--nhk-dark);
+            color: white;
+            border-color: var(--nhk-dark);
+        }
+
+        .program-list {
+            border-top: 1px solid var(--border-color);
+        }
+
+        .program-item {
+            display: flex;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .program-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .program-item.selected {
+            background-color: #ffeeee;
+            border-left: 4px solid var(--nhk-red);
+        }
+
+        .program-time {
+            font-weight: bold;
+            font-size: 0.9rem;
+            width: 90px;
+            color: #555;
+            flex-shrink: 0;
+        }
+
+        .program-info {
+            flex-grow: 1;
+        }
+
+        .program-title {
+            font-weight: bold;
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .program-desc {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .badge-user {
+            background-color: var(--nhk-red);
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+
+        .badge-upload {
+            background-color: #0077cc;
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }
+
+        /* 動画プレイヤーエリア */
+        .player-container {
+            position: sticky;
+            top: 20px;
+        }
+
+        .video-box {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .now-playing-title {
+            font-weight: bold;
+            font-size: 1.05rem;
+            margin-bottom: 5px;
+        }
+
+        .now-playing-desc {
+            font-size: 0.85rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span>NHK</span> 番組作成・動画アップロード付き番組表シミュレーター</h1>
+    </header>
+
+    <div class="container">
+        
+        <!-- 地域・番組作成エリア -->
+        <div class="card">
+            <h2>1. 地域選択 ＆ 番組作成（動画ファイルのアップロード）</h2>
+            <form id="programForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="prefecture">放送地域（都道府県）</label>
+                        <select id="prefecture" required>
+                            <option value="tokyo">東京都（首都圏）</option>
+                            <option value="osaka">大阪府（関西）</option>
+                            <option value="hyogo">兵庫県（関西）</option>
+                            <option value="hokkaido">北海道</option>
+                            <option value="fukuoka">福岡県</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="channel">放送チャンネル</label>
+                        <select id="channel">
+                            <option value="g1">NHK総合1</option>
+                            <option value="e1">NHKEテレ1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="time">放送時間</label>
+                        <input type="text" id="time" value="19:30 - 20:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoFile">動画ファイルをアップロード</label>
+                        <input type="file" id="videoFile" accept="video/*">
+                    </div>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: 2fr 1fr; align-items: flex-end; margin-bottom: 0;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="title">番組タイトル</label>
+                        <input type="text" id="title" placeholder="例：特番：地域の名産を訪ねて" required>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn-primary">番組表に追加する</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px; margin-bottom: 0;">
+                    <label for="desc">番組内容（概要）</label>
+                    <input type="text" id="desc" placeholder="番組の説明文を入力してください" required>
+                </div>
+            </form>
+        </div>
+
+        <!-- メインレイアウト（番組表 ＆ プレイヤー） -->
+        <div class="grid-layout">
+            
+            <!-- 番組表表示エリア -->
+            <div class="card" style="margin-bottom: 0;">
+                <div class="schedule-header">
+                    <h2>2. 番組表ビューアー <span id="currentPrefLabel" style="font-size: 0.9rem; color: #666; margin-left: 10px;">[ 選択中: 東京都 ]</span></h2>
+                </div>
+
+                <div class="channel-tabs">
+                    <button class="tab-btn active" data-channel="g1">NHK総合</button>
+                    <button class="tab-btn" data-channel="e1">Eテレ</button>
+                </div>
+
+                <div class="program-list" id="programList">
+                    <!-- 動的に挿入されます -->
+                </div>
+            </div>
+
+            <!-- 動画再生プレイヤーエリア -->
+            <div class="player-container">
+                <div class="card" style="margin-bottom: 0;">
+                    <h2>3. 番組動画プレイヤー</h2>
+                    <div class="video-box" id="videoBox">
+                        <video id="activeVideo" controls>
+                            お使いのブラウザは動画タグに対応していません。
+                        </video>
+                    </div>
+                    <div class="now-playing-title" id="nowTitle">番組を選択してください</div>
+                    <div class="now-playing-desc" id="nowDesc">番組表の項目をクリックすると、紐づけられた動画が再生されます。</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // サンプルの初期番組データ（地域別・チャンネル別・動画URL付き）
+        const initialPrograms = {
+            tokyo: {
+                g1: [
+                    { time: "18:10 - 18:59", title: "首都圏ネットワーク", desc: "きょうのニュースや首都圏の話題を詳しく。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", isUploaded: false },
+                    { time: "19:00 - 19:30", title: "NHKニュース7", desc: "きょうの国内外のニュースを分かりやすく。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", isUploaded: false },
+                    { time: "19:30 - 20:15", title: "クローズアップ現代", desc: "時代を映し出す深掘りニュースドキュメント。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", isUploaded: false }
+                ],
+                e1: [
+                    { time: "18:00 - 18:20", title: "ダーウィンが来た！選", desc: "生きものたちの驚きの生態に迫る。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", isUploaded: false },
+                    { time: "19:00 - 19:25", title: "Eテレタイム", desc: "学びとエンターテインメントの番組。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", isUploaded: false }
+                ]
+            },
+            hyogo: {
+                g1: [
+                    { time: "18:10 - 18:59", title: "ひょうご熱視線", desc: "兵庫県内のニュースや身近な話題をお届け。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", isUploaded: false },
+                    { time: "19:00 - 19:30", title: "NHKニュース7", desc: "きょうの国内外のニュースを分かりやすく。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", isUploaded: false },
+                    { time: "19:30 - 20:00", title: "地域発ドラマ・特番", desc: "兵庫の魅力が詰まった特別番組。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", isUploaded: false }
+                ],
+                e1: [
+                    { time: "18:00 - 18:20", title: "関西Eテレセレクト", desc: "関西エリア向けの教育・教養番組。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", isUploaded: false }
+                ]
+            },
+            osaka: {
+                g1: [
+                    { time: "18:10 - 18:59", title: "ほっと関西", desc: "関西の今をライブ感たっぷりに伝えるニュース。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", isUploaded: false },
+                    { time: "19:00 - 19:30", title: "NHKニュース7", desc: "きょうの国内外のニュースを分かりやすく。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", isUploaded: false }
+                ],
+                e1: [
+                    { time: "18:00 - 18:20", title: "Eテレ関西", desc: "関西向け教養番組。", video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", isUploaded: false }
+                ]
+            }
+        };
+
+        let currentPref = "tokyo";
+        let currentChannel = "g1";
+        let selectedIndex = 0;
+
+        // DOM要素
+        const prefSelect = document.getElementById("prefecture");
+        const currentPrefLabel = document.getElementById("currentPrefLabel");
+        const programList = document.getElementById("programList");
+        const programForm = document.getElementById("programForm");
+        const tabBtns = document.querySelectorAll(".tab-btn");
+        const activeVideo = document.getElementById("activeVideo");
+        const nowTitle = document.getElementById("nowTitle");
+        const nowDesc = document.getElementById("nowDesc");
+        const videoFileInput = document.getElementById("videoFile");
+
+        // 都道府県変更時
+        prefSelect.addEventListener("change", (e) => {
+            currentPref = e.target.value;
+            currentPrefLabel.textContent = `[ 選択中: ${e.target.options[e.target.selectedIndex].text} ]`;
+            selectedIndex = 0;
+            renderPrograms();
+        });
+
+        // チャンネルタブ切り替え
+        tabBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                tabBtns.forEach(b => b.classList.remove("active"));
+                e.target.classList.add("active");
+                currentChannel = e.target.getAttribute("data-channel");
+                document.getElementById("channel").value = currentChannel;
+                selectedIndex = 0;
+                renderPrograms();
+            });
+        });
+
+        // 番組表の描画関数
+        function renderPrograms() {
+            programList.innerHTML = "";
+            
+            if (!initialPrograms[currentPref]) {
+                initialPrograms[currentPref] = { g1: [], e1: [] };
+            }
+            if (!initialPrograms[currentPref][currentChannel]) {
+                initialPrograms[currentPref][currentChannel] = [];
+            }
+
+            const list = initialPrograms[currentPref][currentChannel];
+
+            if (list.length === 0) {
+                programList.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">番組データがありません</div>`;
+                nowTitle.textContent = "番組がありません";
+                nowDesc.textContent = "番組を作成するか、別のチャンネル・地域を選んでください。";
+                activeVideo.src = "";
+                return;
+            }
+
+            if (selectedIndex >= list.length) {
+                selectedIndex = 0;
+            }
+
+            list.forEach((item, index) => {
+                const itemDiv = document.createElement("div");
+                itemDiv.className = `program-item ${index === selectedIndex ? 'selected' : ''}`;
+                itemDiv.innerHTML = `
+                    <div class="program-time">${item.time}</div>
+                    <div class="program-info">
+                        <div class="program-title">
+                            ${item.title}
+                            <span class="badge-user">作成番組</span>
+                            ${item.isUploaded ? '<span class="badge-upload">アップロード動画</span>' : ''}
+                        </div>
+                        <div class="program-desc">${item.desc}</div>
+                    </div>
+                `;
+
+                itemDiv.addEventListener("click", () => {
+                    selectedIndex = index;
+                    renderPrograms();
+                });
+
+                programList.appendChild(itemDiv);
+            });
+
+            const currentItem = list[selectedIndex];
+            if (currentItem) {
+                nowTitle.textContent = currentItem.title;
+                nowDesc.textContent = currentItem.desc;
+                if (activeVideo.src !== currentItem.video) {
+                    activeVideo.src = currentItem.video;
+                    activeVideo.load();
+                }
+            }
+        }
+
+        // 新規番組作成・アップロード処理
+        programForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+
+            const pref = prefSelect.value;
+            const channel = document.getElementById("channel").value;
+            const time = document.getElementById("time").value;
+            const title = document.getElementById("title").value;
+            const desc = document.getElementById("desc").value;
+            const file = videoFileInput.files[0];
+
+            if (!initialPrograms[pref]) {
+                initialPrograms[pref] = { g1: [], e1: [] };
+            }
+            if (!initialPrograms[pref][channel]) {
+                initialPrograms[pref][channel] = [];
+            }
+
+            // 動画がアップロードされている場合の処理
+            let videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; // デフォルトフォールバック
+            let isUploaded = false;
+
+            if (file) {
+                // ブラウザ内でローカル再生用URLを生成
+                videoUrl = URL.createObjectURL(file);
+                isUploaded = true;
+            }
+
+            const newList = initialPrograms[pref][channel];
+            newList.push({
+                time: time,
+                title: title,
+                desc: desc,
+                video: videoUrl,
+                isUploaded: isUploaded
+            });
+
+            currentPref = pref;
+            currentChannel = channel;
+            prefSelect.value = pref;
+            currentPrefLabel.textContent = `[ 選択中: ${prefSelect.options[prefSelect.selectedIndex].text} ]`;
+            
+            tabBtns.forEach(b => {
+                if (b.getAttribute("data-channel") === channel) {
+                    b.classList.add("active");
+                } else {
+                    b.classList.remove("active");
+                }
+            });
+
+            selectedIndex = newList.length - 1;
+            renderPrograms();
+            programForm.reset(); // フォームをリセット
+
+            alert("番組が正常に作成され、アップロードされた動画とともに番組表に追加されました！");
+        });
+
+        // 初期描画
+        renderPrograms();
+    </script>
+</body>
+</html>
